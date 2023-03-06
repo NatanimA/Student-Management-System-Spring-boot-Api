@@ -27,17 +27,25 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 
     public JWTAuthenticationFilter(AuthenticationManager authenticationManager) {
         this.authenticationManager = authenticationManager;
+        // Default Gets way for getting tokens and do Authentications
         setFilterProcessesUrl("/api/service/login");
     }
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest req,
                                                 HttpServletResponse res) throws AuthenticationException {
+        /**
+         When a Student tries to log in, this will be executed at run time
+         */
         try {
+            /**
+             Get Users Credentials from request.
+             */
             Student creds = new ObjectMapper()
                     .readValue(req.getInputStream(), Student.class);
 
 
+            // Authenticates user with the email and password
             return authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             creds.email,
@@ -54,7 +62,11 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
                                             HttpServletResponse res,
                                             FilterChain chain,
                                             Authentication auth) throws IOException {
+        /**
+         If users are successfully authenticated, this method will be executed.
+         */
 
+        // Signs the token with the given SECRET
         String token = JWT.create()
                 .withSubject(((User) auth.getPrincipal()).getUsername())
                 .withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))

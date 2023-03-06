@@ -1,35 +1,24 @@
 package com.student.management.controller;
 
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.algorithms.Algorithm;
+
 import com.student.management.model.Student;
 import com.student.management.repository.StudentRepository;
 import com.student.management.service.StudentService;
+import com.student.management.util.Util;
 import org.apache.commons.io.IOUtils;
-import org.slf4j.ILoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
+import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Date;
-
-import static com.student.management.config.SecurityConstants.EXPIRATION_TIME;
 
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 @RestController
@@ -42,105 +31,109 @@ public class StudentController {
     @Autowired
     private final StudentRepository studentRepository;
 
-    private AuthenticationManager authenticationManager;
-
-    @Value("${jwt.secret}")
-    private String SECRET;
-
-    @Value("${file.upload.folder}")
-    private String uploadFolder;
-
     public StudentController(StudentService studentService, StudentRepository studentRepository) {
         this.studentService = studentService;
         this.studentRepository = studentRepository;
     }
 
-//    @RequestMapping(value="/service/login", method=RequestMethod.POST)
-//    public ResponseEntity<?> getToken(@RequestBody Student credentials) {
-//        // Generate token and send it in the response
-//        //Authorization
-//        // header
-//        UsernamePasswordAuthenticationToken creds = new UsernamePasswordAuthenticationToken(credentials.email, credentials.password);
-//        Authentication auth = authenticationManager.authenticate(creds);
-//        String jwts = JWT.create()
-//                .withSubject(((Student) auth.getPrincipal()).email)
-//                .withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-//                .sign(Algorithm.HMAC512(SECRET.getBytes()));
-//
-//        return  ResponseEntity.ok().header(HttpHeaders.AUTHORIZATION, "Bearer " + jwts).
-//                header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Authorization").build();
-//
-//    }
-
     @CrossOrigin(origins = "*",maxAge = 3600)
     @GetMapping(path ="/students")
     public ResponseEntity getAllStudents(){
+        /**
+         Api end point to retrieve all the users from repository
+         */
         return studentService.getAllStudents();
     }
 
     @CrossOrigin(origins = "*",maxAge = 3600)
     @GetMapping(path = "/students/{id}")
     public ResponseEntity getStudent(@PathVariable("id") Long id) {
+        /**
+         Api end point to retrieve a student by Id
+          */
         return studentService.getStudent(id);
     }
 
 
     @PostMapping(path = "/students")
     public ResponseEntity saveStudent(@RequestBody Student student){
+        /**
+         Api end point to save a student
+         */
         return studentService.saveStudent(student);
     }
 
     @CrossOrigin(origins = "*",maxAge = 3600)
     @PostMapping("/upload")
     public ResponseEntity uploadFile(@RequestParam("file") MultipartFile file) {
+        /**
+         Api end point to upload student image to the database
+         */
 
         if (file.isEmpty()) {
+            // If request body is empty return bad request
             return ResponseEntity.badRequest().build();
         }
 
         try {
+            // If file exists get the bytes
             byte[] bytes = file.getBytes();
-            Path path = Paths.get(uploadFolder + file.getOriginalFilename());
+            // Upload it to the folder specified in Utils
+            Path path = Paths.get(Util.MediaDirectory() + "\\" + file.getOriginalFilename());
             Files.write(path, bytes);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        return ResponseEntity.ok(uploadFolder + file.getOriginalFilename());
-    }
-
-    @CrossOrigin(origins = "*",maxAge = 3600)
-    @PostMapping(path = "/login")
-    public ResponseEntity login(@RequestBody Student student){
-        return studentService.login(student);
+        // Checks the format of the file uploaded path if its os is windows or linux based.
+        if(System.getProperty("os.name").toLowerCase().contains("window")){
+            return ResponseEntity.ok(Util.MediaDirectory() + "\\" + file.getOriginalFilename());
+        }
+        else {
+            return ResponseEntity.ok(Util.MediaDirectory() + "/" + file.getOriginalFilename());
+        }
     }
 
     @CrossOrigin(origins = "*",maxAge = 3600)
     @DeleteMapping(path = "/students/{id}")
     public ResponseEntity deleteStudent(@PathVariable Long id){
+        /**
+         Api end point to delete a student by Id
+         */
         return studentService.deleteStudent(id);
     }
 
     @CrossOrigin(origins = "*",maxAge = 3600)
     @PutMapping(path = "/students/{id}")
-    public ResponseEntity editStudent(@PathVariable Long id,@RequestBody Student student){
-        return studentService.editStudent(id,student);
+    public ResponseEntity editStudent(@PathVariable Long id, @RequestBody Student student, Neo4jProperties.Authentication authentication){
+        /**
+         Api end point to edit student information.
+          */
+        return studentService.editStudent(id,student,authentication);
     }
 
     @CrossOrigin(origins = "*",maxAge = 3600)
     @GetMapping(path = "/search")
     public ResponseEntity searchStudent(@RequestParam String name){
+        /**
+         Api end point to search for a student by name.
+         */
         return studentService.searchStudent(name);
     }
 
     @GetMapping("/image/{id}")
     public ResponseEntity getImageStream(@PathVariable("id") long id) throws IOException {
+        /**
+         Api end point to stream Image files from upload folder.
+         */
         try {
+            // Get the Image path from the student
             String path = studentRepository.findById(id).get().photo;
-            FileInputStream fileInputStream = new FileInputStream(path);
+            // Put it in a map
             MultiValueMap<String, Object> files = new LinkedMultiValueMap<>();
             files.add("files", new FileSystemResource(path));
+
+            // Get the file resources
             FileSystemResource resource = (FileSystemResource)files.get("files").get(0);
             byte[] imageBytes;
 
@@ -154,6 +147,7 @@ public class StudentController {
             return ResponseEntity.internalServerError().body("Something went wrong please try again later");
         }
     }
+
 
 
 }

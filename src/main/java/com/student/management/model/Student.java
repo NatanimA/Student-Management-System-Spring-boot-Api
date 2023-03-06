@@ -13,6 +13,9 @@ import javax.persistence.*;
 @AllArgsConstructor
 @Builder
 public class Student {
+    /**
+     Student model this will be generated a table called student in a database.
+     */
     @Id
     @GeneratedValue( strategy = GenerationType.IDENTITY)
     public Long id;

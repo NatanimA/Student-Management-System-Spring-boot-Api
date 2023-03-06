@@ -20,6 +20,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        /**
+         This will be executed at runtime to check if a Student is who they say they are.
+         */
         Optional<Student> user =
                 studentRepository.findByEmail(email);
         User.UserBuilder builder = null;
